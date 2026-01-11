@@ -3,7 +3,6 @@ local version = "0.0.1"
 -- Cached values
 local sdk = sdk
 local imgui = imgui
-local chatManager = sdk.get_managed_singleton("app.ChatManager")
 
 -- Configuration
 local ENABLED = true
