@@ -1,6 +1,6 @@
 # 🗡️ Auto Element – Monster Hunter: Wilds Mod
 
-![REFramework](https://img.shields.io/badge/REFramework-Required-red) ![Version](https://img.shields.io/badge/Version-0.0.1-blue)
+![REFramework](https://img.shields.io/badge/REFramework-Required-red)
 
 Automatically adjusts your weapon’s elemental attribute for maximum damage. This mod works per-monster or per-part for optimal elemental effectiveness.
 
