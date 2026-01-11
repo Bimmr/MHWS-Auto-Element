@@ -177,49 +177,49 @@ re.on_draw_ui(function()
         -- Create the binding listener
         local listen = bindings.listener:create("auto_element_listener")
 
-        -- On listener complete set the new hotkeys
+        -- On listener complete set the new keybinds
         listen:on_complete(function()
             -- Remove the old binding
             if binding_config ~= nil then
-                bindings.remove(binding_config.device, binding_config.hotkeys)
+                bindings.remove(binding_config.device, binding_config.input)
             end
 
             -- Set the new binding
             binding_config = {
-                hotkeys = listen:get_inputs(),
+                input = listen:get_inputs(),
                 device = listen:get_device()
             }
 
             -- Add the new binding, and save it to the config
-            bindings.add(binding_config.device, binding_config.hotkeys, toggle)
+            bindings.add(binding_config.device, binding_config.input, toggle)
             config.set("Enabled.Toggle", binding_config)
         end)
 
-        -- Create the hotkey string
-        local hotkey_string = ""
+        -- Create the keybind string
+        local keybind_string = ""
 
         if listen:is_listening() then
-            log.debug("Listening for hotkey input...")
-            -- If listening, and inputs have been started - display the hotkeys being pressed
+            log.debug("Listening for keybind input...")
+            -- If listening, and inputs have been started - display the keybinds being pressed
             if #listen:get_inputs() ~= 0 then
                 local inputs = listen:get_inputs()
                 inputs = bindings.get_names(listen:get_device(), inputs)
                 for _, input in ipairs(inputs) do
-                    hotkey_string = hotkey_string .. input.name .. " + "
+                    keybind_string = keybind_string .. input.name .. " + "
                 end
             else
                 -- If listening, but no inputs have been started - display listening
-                hotkey_string = "Listening... "
+                keybind_string = "Listening... "
             end
-            -- If not listening, display the hotkeys from the config
-        elseif binding_config == nil or binding_config.hotkeys == nil then
-            hotkey_string = "Not Set"
+            -- If not listening, display the keybinds from the config
+        elseif binding_config == nil or binding_config.input == nil then
+            keybind_string = "Not Set"
         else
-            local inputs = bindings.get_names(binding_config.device, binding_config.hotkeys)
+            local inputs = bindings.get_names(binding_config.device, binding_config.input)
             for i, input in ipairs(inputs) do
-                hotkey_string = hotkey_string .. input.name
+                keybind_string = keybind_string .. input.name
                 if i < #inputs then
-                    hotkey_string = hotkey_string .. " + "
+                    keybind_string = keybind_string .. " + "
                 end
             end
         end
@@ -230,12 +230,12 @@ re.on_draw_ui(function()
 
         imgui.begin_disabled()
         imgui.set_next_item_width(200)
-        imgui.input_text("", hotkey_string)
+        imgui.input_text("", keybind_string)
         imgui.end_disabled()
         imgui.same_line()
 
-        -- When the change hotkey button is pressed, start listening for a new hotkey
-        if imgui.button("Change Hotkey") then
+        -- When the change keybind button is pressed, start listening for a new keybind
+        if imgui.button("Change Keybind") then
             listen:start()
         end
         if imgui.is_item_hovered() then
