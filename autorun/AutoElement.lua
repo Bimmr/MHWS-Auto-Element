@@ -245,7 +245,13 @@ re.on_draw_ui(function()
         local changed = false
 
         changed, PER_PART = imgui.checkbox("Change element per part", PER_PART)
+        if changed then
+            config.set("Per Part", PER_PART)
+        end
         changed, ONLY_ADD_IF_ELEMENTAL = imgui.checkbox("Only Change If Elemental", ONLY_ADD_IF_ELEMENTAL)
+        if changed then
+            config.set("Only Change If Elemental", ONLY_ADD_IF_ELEMENTAL)
+        end
         
         imgui.spacing()
         imgui.unindent(10)
