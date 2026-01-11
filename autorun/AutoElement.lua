@@ -144,6 +144,19 @@ sdk.hook(sdk.find_type_definition("app.HunterCharacter"):get_method("changeWeapo
     reset()
 end)
 
+-- If not in combat and has element set then we reset since it's no longer needed
+sdk.hook(sdk.find_type_definition("app.HunterCharacter"):get_method("update"), function(args)
+    local managed = sdk.to_managed_object(args[2])
+    if not managed:get_type_definition():is_a("app.HunterCharacter") then return end
+    if not managed:get_IsMaster() then return end
+    if ENABLED and element_set ~= nil then
+        local is_combat = managed:get_IsCombat()
+        if not is_combat then
+            reset()
+        end
+    end
+end)
+
 -- Restore original element on script reset
 re.on_script_reset(function()
     reset()
