@@ -18,14 +18,15 @@ local monster_element_cache = {}
 local last_hit = {}
 
 
--- Remember if the current weapon has an element, used to skip hook early if ONLY_ADD_IF_ELEMENTAL is true
-local current_weapon_has_element = true -- Assume true initially, this will be updated on first change attempt
+-- Remember if the current weapon has an element, used to skip hook early
+local skip_current_weapon = false
 
 
 -- Configuration
 local ENABLED = true
 local PER_PART = true
 local ONLY_ADD_IF_ELEMENTAL = false
+local DONT_REPLACE_STATUS = false
 
 
 -- Element definitions
@@ -75,10 +76,20 @@ local function ChangeWeaponElement(elementName)
 
     local current_attr = attack_power:get_field("_WeaponAttrType")
 
-    -- Check if weapon has elemental attribute. If it doesn't then we require ONLY_ADD_IF_ELEMENTAL to be true before we set the new element
-    if ONLY_ADD_IF_ELEMENTAL and (current_attr == 0 or current_attr == nil) then
-        current_weapon_has_element = false
-        return false
+    -- Check if we should skip based on config and weapon element
+    if ONLY_ADD_IF_ELEMENTAL then
+        if current_attr == 0 then
+            skip_current_weapon = true
+            return false
+        end
+    end
+
+    -- Check if we should skip based on config and if status not element
+    if DONT_REPLACE_STATUS then
+        if current_attr > 5 then
+            skip_current_weapon = true
+            return false
+        end
     end
 
     -- Cache original element value on first change
@@ -115,7 +126,7 @@ end
 local function reset()
     RestoreOriginalElement()
     last_hit = {}
-    current_weapon_has_element = true
+    skip_current_weapon = false
 end
 
 --- Function to toggle the Auto Element feature
@@ -150,10 +161,10 @@ sdk.hook(sdk.find_type_definition("app.HunterCharacter"):get_method("update"), f
     if not managed:get_type_definition():is_a("app.HunterCharacter") then return end
     if not managed:get_IsMaster() then return end
     if ENABLED and element_set ~= nil then
-        local is_combat = managed:get_IsCombat()
-        if not is_combat then
-            reset()
-        end
+        -- local is_combat = managed:get_IsCombat()
+        -- if not is_combat then
+        --     reset()
+        -- end
     end
 end)
 
@@ -172,6 +183,7 @@ end)
 ENABLED = config.get("Enabled.Value") or ENABLED
 PER_PART = config.get("Per Part") or PER_PART
 ONLY_ADD_IF_ELEMENTAL = config.get("Only Change If Elemental") or ONLY_ADD_IF_ELEMENTAL
+DONT_REPLACE_STATUS = config.get("Don't Replace Status") or DONT_REPLACE_STATUS
 
 local binding_config = config.get("Enabled.Toggle")
 if binding_config then
@@ -264,6 +276,10 @@ re.on_draw_ui(function()
         changed, ONLY_ADD_IF_ELEMENTAL = imgui.checkbox("Only Change If Elemental", ONLY_ADD_IF_ELEMENTAL)
         if changed then
             config.set("Only Change If Elemental", ONLY_ADD_IF_ELEMENTAL)
+        end
+        changed, DONT_REPLACE_STATUS = imgui.checkbox("Don't Replace Status", DONT_REPLACE_STATUS)
+        if changed then
+            config.set("Don't Replace Status", DONT_REPLACE_STATUS)
         end
         
         imgui.spacing()
@@ -415,7 +431,7 @@ sdk.hook(sdk.find_type_definition("app.HunterCharacter"):get_method("evHit_Attac
     function(args)
 
         if not ENABLED then return end -- Early out if not enabled
-        if not current_weapon_has_element and ONLY_ADD_IF_ELEMENTAL then return end -- Early out if weapon has no element and we only want to add if elemental
+        if skip_current_weapon then return end -- Early out if we're skipping weapon
 
         local hunter = sdk.to_managed_object(args[2])
         if not hunter:get_type_definition():is_a("app.HunterCharacter") then return end
