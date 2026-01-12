@@ -261,7 +261,11 @@ re.on_draw_ui(function()
         imgui.same_line()
 
         imgui.begin_disabled()
-        imgui.set_next_item_width(200)
+        local window_width = imgui.get_window_size().x
+        local button_width = imgui.calc_text_size("Enabled    Change Keybind").x
+        local available_width = window_width - button_width - 80 -- 60 for padding and checkbox
+        local width = math.max(60, math.min(175, available_width))
+        imgui.set_next_item_width(width)
         imgui.input_text("", keybind_string)
         imgui.end_disabled()
         imgui.same_line()
