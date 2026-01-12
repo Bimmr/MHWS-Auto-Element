@@ -38,6 +38,13 @@ local ELEMENTS = {
     { name = "Dragon",  value = 5, field = "_Dragon" }
 }
 
+--- Display a tooltip next to the last item
+--- @param text string The tooltip text
+local function add_tooltip(text)
+    imgui.same_line()
+    imgui.text("(?)")
+    if imgui.is_item_hovered() then imgui.set_tooltip("  "..text.."  ") end
+end
 
 --- Function to get player's hunter status
 --- @return userdata The hunter status object
@@ -161,10 +168,10 @@ sdk.hook(sdk.find_type_definition("app.HunterCharacter"):get_method("update"), f
     if not managed:get_type_definition():is_a("app.HunterCharacter") then return end
     if not managed:get_IsMaster() then return end
     if ENABLED and element_set ~= nil then
-        -- local is_combat = managed:get_IsCombat()
-        -- if not is_combat then
-        --     reset()
-        -- end
+        local is_combat = managed:get_IsCombat()
+        if not is_combat then
+            reset()
+        end
     end
 end)
 
@@ -268,18 +275,26 @@ re.on_draw_ui(function()
         end
 
         local changed = false
+        local any_changed = false
 
         changed, PER_PART = imgui.checkbox("Change element per part", PER_PART)
-        if changed then
-            config.set("Per Part", PER_PART)
-        end
-        changed, ONLY_ADD_IF_ELEMENTAL = imgui.checkbox("Only Change If Elemental", ONLY_ADD_IF_ELEMENTAL)
-        if changed then
-            config.set("Only Change If Elemental", ONLY_ADD_IF_ELEMENTAL)
-        end
-        changed, DONT_REPLACE_STATUS = imgui.checkbox("Don't Replace Status", DONT_REPLACE_STATUS)
-        if changed then
-            config.set("Don't Replace Status", DONT_REPLACE_STATUS)
+        add_tooltip("Change the weapon's element based on the specific monster part hit, rather than the monster as a whole.")
+        if changed then config.set("Per Part", PER_PART) end
+        any_changed = any_changed or changed
+
+        changed, ONLY_ADD_IF_ELEMENTAL = imgui.checkbox("Only change if elemental", ONLY_ADD_IF_ELEMENTAL)
+        add_tooltip("Only change the weapon's element if it already has an elemental attribute.")
+        if changed then config.set("Only Change If Elemental", ONLY_ADD_IF_ELEMENTAL) end
+        any_changed = any_changed or changed
+
+        changed, DONT_REPLACE_STATUS = imgui.checkbox("Don't replace status effects", DONT_REPLACE_STATUS)
+        add_tooltip("If the weapon currently has a status effect (e.g. poison), do not replace it with an element.")
+        if changed then config.set("Don't Replace Status", DONT_REPLACE_STATUS) end
+        any_changed = any_changed or changed
+
+        -- If any settings changed, reset the element changes
+        if any_changed then
+            reset()
         end
         
         imgui.spacing()
