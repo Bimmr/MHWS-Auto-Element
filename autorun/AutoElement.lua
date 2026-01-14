@@ -1,9 +1,9 @@
-local version = "0.0.2"
+local version = "0.0.3"
 
 -- Cached values
 local sdk = sdk
 local imgui = imgui
-local chatManager = sdk.get_managed_singleton("app.ChatManager")
+local chat_manager = sdk.get_managed_singleton("app.ChatManager")
 
 
 -- Other required files
@@ -27,6 +27,7 @@ local ENABLED = true
 local PER_PART = true
 local ONLY_ADD_IF_ELEMENTAL = false
 local DONT_REPLACE_STATUS = false
+local CHANGE_WEAPON_BASE = true
 
 
 -- Element definitions
@@ -40,7 +41,7 @@ local ELEMENTS = {
 
 --- Display a tooltip next to the last item
 --- @param text string The tooltip text
-local function add_tooltip(text)
+local function AddTooltip(text)
     imgui.same_line()
     imgui.text("(?)")
     if imgui.is_item_hovered() then imgui.set_tooltip("  "..text.."  ") end
@@ -61,6 +62,18 @@ local function GetPlayerHunterStatus()
     return hunter_character:get_HunterStatus()
 end
 
+--- Function to get element value by name
+--- @param elementName string The name of the element
+--- @return number The element value, or nil if not found
+local function GetElementValueByName(elementName)
+    for _, elem in ipairs(ELEMENTS) do
+        if elem.name == elementName then
+            return elem.value
+        end
+    end
+    return nil
+end
+
 --- Function to change weapon element, will cache original element on first change
 --- @param elementName string The name of the element to change to
 --- @return boolean True if successful, false otherwise
@@ -72,13 +85,7 @@ local function ChangeWeaponElement(elementName)
     if not attack_power then return false end
 
     -- Get the element type enum value
-    local element_value = nil
-    for _, elem in ipairs(ELEMENTS) do
-        if elem.name == elementName then
-            element_value = elem.value
-            break
-        end
-    end
+    local element_value = GetElementValueByName(elementName)
     if not element_value then return false end
 
     local current_attr = attack_power:get_field("_WeaponAttrType")
@@ -139,7 +146,7 @@ end
 --- Function to toggle the Auto Element feature
 local function toggle(new_value)
     ENABLED = new_value ~= nil and new_value or not ENABLED
-    chatManager:addSystemLog(ENABLED and "Auto Element Enabled" or "Auto Element Disabled")
+    chat_manager:addSystemLog(ENABLED and "Auto Element Enabled" or "Auto Element Disabled")
     config.set("Enabled.Value", ENABLED)
     if not ENABLED then
         reset()
@@ -168,7 +175,7 @@ sdk.hook(sdk.find_type_definition("app.HunterCharacter"):get_method("update"), f
     if not managed:get_type_definition():is_a("app.HunterCharacter") then return end
     if not managed:get_IsMaster() then return end
     if ENABLED and element_set ~= nil then
-        local is_combat = managed:get_IsCombat()
+        local is_combat = managed:get_IsCombat() --TODO: Maybe change to if weapon is out?
         if not is_combat then
             reset()
         end
@@ -187,16 +194,25 @@ re.on_frame(function()
 end)
 
 --------------------------------------- Config ------------------------------------
-ENABLED = config.get("Enabled.Value") or ENABLED
-PER_PART = config.get("Per Part") or PER_PART
-ONLY_ADD_IF_ELEMENTAL = config.get("Only Change If Elemental") or ONLY_ADD_IF_ELEMENTAL
-DONT_REPLACE_STATUS = config.get("Don't Replace Status") or DONT_REPLACE_STATUS
+local temp = config.get("Enabled.Value")
+if temp ~= nil then ENABLED = temp end
+
+temp = config.get("Per Part")
+if temp ~= nil then PER_PART = temp end
+
+temp = config.get("Change Weapon Base")
+if temp ~= nil then CHANGE_WEAPON_BASE = temp end
+
+temp = config.get("Only Change If Elemental")
+if temp ~= nil then ONLY_ADD_IF_ELEMENTAL = temp end
+
+temp = config.get("Don't Replace Status")
+if temp ~= nil then DONT_REPLACE_STATUS = temp end
 
 local binding_config = config.get("Enabled.Toggle")
 if binding_config then
     bindings.add(binding_config.device, binding_config.input, toggle)
 end
-
 
 ------------------------------- UI ------------------------------------
 re.on_draw_ui(function()
@@ -282,17 +298,22 @@ re.on_draw_ui(function()
         local any_changed = false
 
         changed, PER_PART = imgui.checkbox("Change element per part", PER_PART)
-        add_tooltip("Change the weapon's element based on the specific monster part hit, rather than the monster as a whole.")
+        AddTooltip("Change the weapon's element based on the specific monster part hit, rather than the monster as a whole.")
         if changed then config.set("Per Part", PER_PART) end
         any_changed = any_changed or changed
 
-        changed, ONLY_ADD_IF_ELEMENTAL = imgui.checkbox("Only change if elemental", ONLY_ADD_IF_ELEMENTAL)
-        add_tooltip("Only change the weapon's element if it already has an elemental attribute.")
+        changed, CHANGE_WEAPON_BASE = imgui.checkbox("Change weapon base element", CHANGE_WEAPON_BASE)
+        AddTooltip("Change the weapon's base element attribute rather than just changing the attack info on hit.\n  This will make the element change visible in the weapon stats and particles but not be affected by elemental jewels or skills.")
+        if changed then config.set("Change Weapon Base", CHANGE_WEAPON_BASE) end
+        any_changed = any_changed or changed
+
+        changed, ONLY_ADD_IF_ELEMENTAL = imgui.checkbox("Only change if weapon has element", ONLY_ADD_IF_ELEMENTAL)
+        AddTooltip("Only change the element of weapons that have an elemental type.")
         if changed then config.set("Only Change If Elemental", ONLY_ADD_IF_ELEMENTAL) end
         any_changed = any_changed or changed
 
         changed, DONT_REPLACE_STATUS = imgui.checkbox("Don't replace status effects", DONT_REPLACE_STATUS)
-        add_tooltip("If the weapon currently has a status effect (e.g. poison), do not replace it with an element.")
+        AddTooltip("If the weapon currently has a status effect (e.g. poison), do not replace it with an element.")
         if changed then config.set("Don't Replace Status", DONT_REPLACE_STATUS) end
         any_changed = any_changed or changed
 
@@ -304,7 +325,7 @@ re.on_draw_ui(function()
         imgui.spacing()
         imgui.unindent(10)
         imgui.pop_id()
-        imgui.pop_style_var() -- Rounded elements
+        imgui.pop_style_var()
         imgui.separator()
     end
 end)
@@ -470,7 +491,7 @@ sdk.hook(sdk.find_type_definition("app.HunterCharacter"):get_method("evHit_Attac
 
         -- Avoid processing the same hit multiple times
         local damage_owner_address = damage_owner:get_address()
-        if damage_owner_address == last_hit.address and hit_part == last_hit.part then return end
+        if CHANGE_WEAPON_BASE and damage_owner_address == last_hit.address and hit_part == last_hit.part then return end -- If we're changing the weapon base, avoid duplicate hits as it won't need to be updated again
 
         last_hit.address = damage_owner_address
         last_hit.part = hit_part
@@ -493,11 +514,39 @@ sdk.hook(sdk.find_type_definition("app.HunterCharacter"):get_method("evHit_Attac
                 best_element, best_value = GetBestElementForMonster(monster)
             end
 
-            -- Change weapon element if different from current
-            if best_element ~= element_set then
-                if ChangeWeaponElement(best_element) then
-                    log.debug(string.format("Changed weapon element to %s (%.2f) for monster %s part %s", best_element, best_value, tostring(monster:get_EmID()), tostring(hit_part)))
+            -- Check if we're just changing the weapon base, or if we're changing the attack info
+            if CHANGE_WEAPON_BASE then
+                -- Change weapon element if different from current
+                if best_element ~= element_set then  
+                    if ChangeWeaponElement(best_element) then
+                        log.debug(string.format("Changed weapon element to %s (%.2f) for monster %s part %s", best_element, best_value, tostring(monster:get_EmID()), tostring(hit_part)))
+                    end
                 end
+            else
+                -- Pass everything to the post function to modify the attack info
+                local attack_info = hit_info:get_AttackData()
+                if not attack_info then return end
+                local storage = thread.get_hook_storage()
+                storage.attack_info = attack_info
+                storage.best_element = best_element
+                storage.best_value = best_value
+                storage.monster = monster
+                storage.hit_part = hit_part
             end
         end
-    end)
+    end,
+    function(retval)
+        local storage = thread.get_hook_storage()
+        if not storage.attack_info then return retval end
+        local attack_info = storage.attack_info
+        local best_element = storage.best_element
+        local best_value = storage.best_value
+        local monster = storage.monster
+        local hit_part = storage.hit_part
+        local element_type = GetElementValueByName(best_element)
+        attack_info:set_field("_AttackAttr", element_type)
+        log.debug(string.format("Set hit attack element to %s (%.2f) for monster %s part %s", best_element, best_value, tostring(monster:get_EmID()), tostring(hit_part)))
+
+        return retval
+    end
+)
