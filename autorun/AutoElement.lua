@@ -303,12 +303,12 @@ re.on_draw_ui(function()
         any_changed = any_changed or changed
 
         changed, CHANGE_WEAPON_BASE = imgui.checkbox("Change weapon base element", CHANGE_WEAPON_BASE)
-        AddTooltip("Change the weapon's base element attribute rather than just changing the attack info on hit.\n  This will make the element change visible in the weapon stats and particles but not be affected by elemental decorations.")
+        AddTooltip("Having this enabled will change the weapon's base element which means it will show in the equipment and particles.\n  Disabling this will instead change the attack info on hit, which means the new element won't be visible, but will still affect damage.")
         if changed then config.set("Change Weapon Base", CHANGE_WEAPON_BASE) end
         any_changed = any_changed or changed
 
         changed, ONLY_ADD_IF_ELEMENTAL = imgui.checkbox("Only change if weapon has element", ONLY_ADD_IF_ELEMENTAL)
-        AddTooltip("Only change the element of weapons that have an elemental type.")
+        AddTooltip("Only change the element of weapons that already have an element.")
         if changed then config.set("Only Change If Elemental", ONLY_ADD_IF_ELEMENTAL) end
         any_changed = any_changed or changed
 
